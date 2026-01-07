@@ -256,11 +256,12 @@ This project is private and proprietary.
 
 ## Contact
 
-For questions or support, please contact the development team.
+For questions or support, please contact; 
 
+LinkedIn : https://www.linkedin.com/in/vageesh-kudutini-ramesh/
+Email: vageesh2001@gmail.com
 ---
 
 **MealCraft** - Plan smarter. Eat better. 🍳
-
 
 
