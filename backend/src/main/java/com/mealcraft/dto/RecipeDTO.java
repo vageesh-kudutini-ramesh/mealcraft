@@ -93,6 +93,17 @@ public class RecipeDTO {
      * Whether this recipe uses expiring ingredients (for priority indicator)
      */
     private Boolean usesExpiringIngredients = false;
+
+    /**
+     * List of missing ingredients (not in pantry)
+     * Format: List of maps with "name", "quantity", "unit"
+     */
+    private List<Map<String, Object>> missingIngredients;
+
+    /**
+     * TheMealDB category (e.g. Vegetarian, Beef, Chicken) - used for diet filtering
+     */
+    private String category;
 }
 
 

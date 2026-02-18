@@ -57,6 +57,7 @@ public class UserController {
         UserProfileDTO updatedProfile = userService.updateUserProfile(email, profileDTO);
         return ResponseEntity.ok(updatedProfile);
     }
+
 }
 
 

@@ -77,6 +77,21 @@ public class MealPlanDTO {
      * Can be null for quick-add recipes
      */
     private Long savedRecipeId;
+
+    /**
+     * Whether this meal is a batch / double portion (cook once, eat twice).
+     */
+    private Boolean isBatch = false;
+
+    /**
+     * ID of the meal plan entry this is a leftover of (if applicable).
+     */
+    private Long leftoverOfMealPlanId;
+
+    /**
+     * Pattern key that auto-filled this slot (e.g. MEATLESS_MONDAY). Enables revert.
+     */
+    private String sourcePatternKey;
 }
 
 

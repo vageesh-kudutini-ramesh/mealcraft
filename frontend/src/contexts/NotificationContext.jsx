@@ -91,18 +91,18 @@ export const NotificationProvider = ({ children }) => {
     <NotificationContext.Provider value={value}>
       {children}
       {/* Notification container */}
-      <div className="fixed top-4 right-4 z-50 space-y-2">
+      <div className="fixed top-4 right-4 z-50 space-y-2 font-body">
         {notifications.map((notification) => (
           <div
             key={notification.id}
-            className={`px-4 py-3 rounded-lg shadow-lg min-w-[300px] max-w-md ${
+            className={`px-5 py-4 rounded-2xl shadow-card min-w-[320px] max-w-md backdrop-blur-sm ${
               notification.type === 'success'
-                ? 'bg-green-500 text-white'
+                ? 'bg-emerald-500 text-white'
                 : notification.type === 'error'
                 ? 'bg-red-500 text-white'
                 : notification.type === 'warning'
-                ? 'bg-yellow-500 text-white'
-                : 'bg-blue-500 text-white'
+                ? 'bg-amber-500 text-white'
+                : 'bg-primary-500 text-white'
             }`}
           >
             <div className="flex items-center justify-between">

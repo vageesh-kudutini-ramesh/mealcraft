@@ -1,5 +1,6 @@
 package com.mealcraft.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.mealcraft.model.PantryItem;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -67,6 +68,20 @@ public class ShoppingListItemDTO {
      * Optional
      */
     private PantryItem.PantryCategory category;
+
+    /** Source: MANUAL or MEAL_PLAN_WEEK (for undo). */
+    private String sourceType;
+
+    /** When source is MEAL_PLAN_WEEK, week start date yyyy-MM-dd. */
+    private String sourceWeekStart;
+
+    /** Date when the item was added to the shopping list (from createdAt). */
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate addedAt;
+
+    /** Date when the item was marked as purchased (null if not yet purchased). */
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate purchasedAt;
 }
 
 

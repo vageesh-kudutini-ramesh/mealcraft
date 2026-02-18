@@ -34,8 +34,15 @@ export const AuthProvider = ({ children }) => {
     if (storedToken && storedUser) {
       setToken(storedToken)
       setUser(JSON.parse(storedUser))
-      // Set default authorization header
       axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`
+      // Fetch profile to get latest profilePhotoUrl
+      axios.get('/api/users/profile')
+        .then((res) => {
+          const u = JSON.parse(storedUser)
+          setUser({ ...u, ...res.data })
+          localStorage.setItem('user', JSON.stringify({ ...u, ...res.data }))
+        })
+        .catch(() => {})
     }
     setLoading(false)
   }, [])
@@ -79,11 +86,11 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await axios.post('/api/auth/register', userData)
-      const { token: newToken, userId, email: userEmail, fullName, initials } = response.data
+      const { token: newToken, userId, email: userEmail, fullName, initials, profilePhotoUrl } = response.data
       
       // Store token and user info
       localStorage.setItem('token', newToken)
-      const userInfo = { id: userId, email: userEmail, fullName, initials }
+      const userInfo = { id: userId, email: userEmail, fullName, initials, profilePhotoUrl }
       localStorage.setItem('user', JSON.stringify(userInfo))
       
       // Update state
@@ -119,13 +126,9 @@ export const AuthProvider = ({ children }) => {
   const updateProfile = async (profileData) => {
     try {
       const response = await axios.put('/api/users/profile', profileData)
-      const { fullName, initials } = response.data
-      
-      // Update stored user info
       const updatedUser = { ...user, ...response.data }
       localStorage.setItem('user', JSON.stringify(updatedUser))
       setUser(updatedUser)
-      
       return response.data
     } catch (error) {
       throw error.response?.data || error.message

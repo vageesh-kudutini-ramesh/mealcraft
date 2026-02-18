@@ -124,6 +124,25 @@ public class MealPlan {
     private User user;
 
     /**
+     * Whether this meal was planned as a batch / double portion (cook once, eat twice).
+     */
+    @Column(nullable = false)
+    private Boolean isBatch = false;
+
+    /**
+     * If this slot is a "leftover" of another meal, reference that meal plan entry.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "leftover_of_meal_plan_id")
+    private MealPlan leftoverOfMealPlan;
+
+    /**
+     * Pattern that auto-filled this slot (e.g. MEATLESS_MONDAY). Enables "revert patterns" for this week.
+     */
+    @Column(length = 80)
+    private String sourcePatternKey;
+
+    /**
      * Timestamp when meal plan was created
      * Automatically set on creation
      */

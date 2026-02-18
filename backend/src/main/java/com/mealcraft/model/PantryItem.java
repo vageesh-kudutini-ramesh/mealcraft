@@ -128,14 +128,15 @@ public class PantryItem {
     }
 
     /**
-     * Determines expiration status based on days until expiry
+     * Determines expiration status based on days until expiry.
+     * EXPIRING_SOON = within 7 days (aligned with Pantry tab and notifications).
      * @return ExpirationStatus enum value
      */
     public ExpirationStatus getExpirationStatus() {
         long daysUntilExpiry = getDaysUntilExpiry();
         if (daysUntilExpiry < 0) {
             return ExpirationStatus.EXPIRED;
-        } else if (daysUntilExpiry <= 5) {
+        } else if (daysUntilExpiry <= 7) {
             return ExpirationStatus.EXPIRING_SOON;
         } else {
             return ExpirationStatus.FRESH;

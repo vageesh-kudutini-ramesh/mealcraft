@@ -1,8 +1,12 @@
 package com.mealcraft.controller;
 
 import com.mealcraft.dto.MealPlanDTO;
+import com.mealcraft.dto.MealPlanPreferencesDTO;
+import com.mealcraft.dto.WeekExportDTO;
+import com.mealcraft.model.MealPlan;
 import com.mealcraft.model.User;
 import com.mealcraft.repository.UserRepository;
+import com.mealcraft.service.MealPlanPreferencesService;
 import com.mealcraft.service.MealPlanService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Meal Plan Controller
@@ -30,6 +35,9 @@ public class MealPlanController {
 
     @Autowired
     private MealPlanService mealPlanService;
+
+    @Autowired
+    private MealPlanPreferencesService preferencesService;
 
     @Autowired
     private UserRepository userRepository;
@@ -142,6 +150,76 @@ public class MealPlanController {
         User user = getCurrentUser(authentication);
         mealPlanService.clearMealPlanForDate(user.getId(), date);
         return ResponseEntity.ok().build();
+    }
+
+    /** GET /api/meal-plans/preferences */
+    @GetMapping("/preferences")
+    public ResponseEntity<MealPlanPreferencesDTO> getPreferences(Authentication authentication) {
+        User user = getCurrentUser(authentication);
+        return ResponseEntity.ok(preferencesService.getPreferences(user.getId()));
+    }
+
+    /** PUT /api/meal-plans/preferences */
+    @PutMapping("/preferences")
+    public ResponseEntity<MealPlanPreferencesDTO> savePreferences(
+            Authentication authentication,
+            @RequestBody MealPlanPreferencesDTO dto) {
+        User user = getCurrentUser(authentication);
+        return ResponseEntity.ok(preferencesService.savePreferences(user.getId(), dto));
+    }
+
+    /** POST /api/meal-plans/apply-patterns?weekStart={date} */
+    @PostMapping("/apply-patterns")
+    public ResponseEntity<List<MealPlanDTO>> applyPatterns(
+            Authentication authentication,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate weekStart) {
+        User user = getCurrentUser(authentication);
+        List<MealPlanDTO> created = mealPlanService.applyPatternsToWeek(user.getId(), weekStart);
+        return ResponseEntity.ok(created);
+    }
+
+    /** POST /api/meal-plans/revert-patterns?weekStart={date} */
+    @PostMapping("/revert-patterns")
+    public ResponseEntity<Map<String, Integer>> revertPatterns(
+            Authentication authentication,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate weekStart) {
+        User user = getCurrentUser(authentication);
+        int count = mealPlanService.revertPatternsForWeek(user.getId(), weekStart);
+        return ResponseEntity.ok(Map.of("removedCount", count));
+    }
+
+    /** GET /api/meal-plans/export?startDate=&endDate=&includeShopping= */
+    @GetMapping("/export")
+    public ResponseEntity<WeekExportDTO> exportWeek(
+            Authentication authentication,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(defaultValue = "true") boolean includeShopping) {
+        User user = getCurrentUser(authentication);
+        WeekExportDTO export = mealPlanService.getWeekExport(user.getId(), startDate, endDate, includeShopping);
+        return ResponseEntity.ok(export);
+    }
+
+    /** GET /api/meal-plans/{id}/leftover-suggestions */
+    @GetMapping("/{id}/leftover-suggestions")
+    public ResponseEntity<List<Map<String, Object>>> leftoverSuggestions(
+            Authentication authentication,
+            @PathVariable Long id) {
+        User user = getCurrentUser(authentication);
+        return ResponseEntity.ok(mealPlanService.suggestLeftoverSlots(user.getId(), id));
+    }
+
+    /** POST /api/meal-plans/leftover */
+    @PostMapping("/leftover")
+    public ResponseEntity<MealPlanDTO> addLeftover(
+            Authentication authentication,
+            @RequestBody Map<String, Object> body) {
+        User user = getCurrentUser(authentication);
+        Long sourceId = Long.valueOf(body.get("sourceMealPlanId").toString());
+        LocalDate date = LocalDate.parse(body.get("date").toString());
+        MealPlan.MealType mealType = MealPlan.MealType.valueOf(body.get("mealType").toString());
+        MealPlanDTO created = mealPlanService.addLeftoverToSlot(user.getId(), sourceId, date, mealType);
+        return ResponseEntity.ok(created);
     }
 
     /**

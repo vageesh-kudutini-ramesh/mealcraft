@@ -62,29 +62,35 @@ public class PantryItemService {
             .collect(Collectors.toList());
     }
 
+    /** Number of days considered "expiring soon" – aligned with Pantry tab and notifications */
+    private static final int EXPIRING_SOON_DAYS = 7;
+
     /**
-     * Gets expiring items (1-5 days until expiry)
+     * Gets expiring items (within 7 days – today through 7 days from now).
+     * Uses user's local date when provided (avoids timezone mismatch).
      * 
      * @param userId User's ID
+     * @param localDate User's local date (null = use server date)
      * @return List of PantryItemDTO
      */
-    public List<PantryItemDTO> getExpiringItems(Long userId) {
-        LocalDate today = LocalDate.now();
-        LocalDate fiveDaysFromNow = today.plusDays(5);
-        List<PantryItem> items = pantryItemRepository.findExpiringItems(userId, today, fiveDaysFromNow);
+    public List<PantryItemDTO> getExpiringItems(Long userId, LocalDate localDate) {
+        LocalDate today = localDate != null ? localDate : LocalDate.now();
+        LocalDate endDate = today.plusDays(EXPIRING_SOON_DAYS);
+        List<PantryItem> items = pantryItemRepository.findExpiringItems(userId, today, endDate);
         return items.stream()
             .map(this::mapToDTO)
             .collect(Collectors.toList());
     }
 
     /**
-     * Gets expired items
+     * Gets expired items. Uses user's local date when provided.
      * 
      * @param userId User's ID
+     * @param localDate User's local date (null = use server date)
      * @return List of PantryItemDTO
      */
-    public List<PantryItemDTO> getExpiredItems(Long userId) {
-        LocalDate today = LocalDate.now();
+    public List<PantryItemDTO> getExpiredItems(Long userId, LocalDate localDate) {
+        LocalDate today = localDate != null ? localDate : LocalDate.now();
         List<PantryItem> items = pantryItemRepository.findExpiredItems(userId, today);
         return items.stream()
             .map(this::mapToDTO)

@@ -33,11 +33,14 @@ Thumbs.db
 # Environment variables
 .env
 .env.local
+.env.development.local
+.env.test.local
+.env.production.local
 .env.production
 *.log
 
-# Application properties (uncomment if you have sensitive data)
-# backend/src/main/resources/application.properties
+# Backend secrets - never commit (copy from application-local.properties.example)
+backend/application-local.properties
 
 # Maven
 backend/.mvn/

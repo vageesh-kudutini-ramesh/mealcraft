@@ -15,12 +15,18 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.http.HttpMethod;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.Arrays;
+
+import org.springframework.core.annotation.Order;
 
 /**
  * Spring Security Configuration
@@ -36,13 +42,38 @@ import java.util.Arrays;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@Order(1)
 public class SecurityConfig {
 
     @Autowired
     private UserDetailsService userDetailsService;
-
+    
     @Autowired
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
+    private JwtUtil jwtUtil;
+    
+    @jakarta.annotation.PostConstruct
+    public void init() {
+        System.out.println("[SecurityConfig] ========== SECURITY CONFIG INITIALIZED ==========");
+        System.out.println("[SecurityConfig] UserDetailsService: " + (userDetailsService != null ? "INJECTED" : "NULL"));
+        System.out.println("[SecurityConfig] JwtUtil: " + (jwtUtil != null ? "INJECTED" : "NULL"));
+    }
+    
+    /**
+     * Creates and configures JWT Authentication Filter
+     * This bean is explicitly created here to ensure proper dependency injection
+     * 
+     * @return Configured JwtAuthenticationFilter
+     */
+    @Bean
+    public JwtAuthenticationFilter jwtAuthenticationFilter() {
+        System.out.println("[SecurityConfig] ========== CREATING JWT FILTER BEAN ==========");
+        JwtAuthenticationFilter filter = new JwtAuthenticationFilter();
+        filter.setUserDetailsService(userDetailsService);
+        filter.setJwtUtil(jwtUtil);
+        filter.initialize();
+        System.out.println("[SecurityConfig] ✓✓✓ JWT Filter bean created successfully");
+        return filter;
+    }
 
     /**
      * Configures security filter chain
@@ -52,23 +83,46 @@ public class SecurityConfig {
      * @throws Exception if configuration error occurs
      */
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+        System.out.println("[SecurityConfig] ========== CONFIGURING SECURITY FILTER CHAIN ==========");
+        System.out.println("[SecurityConfig] JWT Filter instance check: " + (jwtAuthenticationFilter != null ? "EXISTS" : "NULL"));
+        
+        // Add JWT filter FIRST - before any other configuration
+        if (jwtAuthenticationFilter != null) {
+            System.out.println("[SecurityConfig] Adding JWT filter to chain BEFORE authorization...");
+            http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            System.out.println("[SecurityConfig] ✓✓✓ JWT Filter added to filter chain successfully");
+        } else {
+            System.out.println("[SecurityConfig] ✗✗✗ CRITICAL ERROR: JWT Filter is NULL!");
+            throw new IllegalStateException("JWT Authentication Filter is null - cannot configure security");
+        }
+        
         http
-            .csrf(csrf -> csrf.disable()) // Disable CSRF for JWT-based stateless authentication
-            .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Enable CORS
+            .csrf(csrf -> csrf.disable())
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
-                // Public endpoints
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/health").permitAll()
-                // All other endpoints require authentication
+                .requestMatchers("/api/recipes/discover").permitAll()
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS) // Stateless sessions for JWT
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
-            .authenticationProvider(authenticationProvider())
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            .exceptionHandling(exceptions -> exceptions
+                .accessDeniedHandler(accessDeniedHandler())
+                .authenticationEntryPoint((request, response, authException) -> {
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json");
+                    response.setCharacterEncoding("UTF-8");
+                    String jsonResponse = "{\"error\":\"Unauthorized\",\"message\":\"Authentication required\",\"status\":401}";
+                    response.getWriter().write(jsonResponse);
+                })
+            )
+            .authenticationProvider(authenticationProvider());
 
+        System.out.println("[SecurityConfig] ========== SECURITY FILTER CHAIN CONFIGURED ==========");
         return http.build();
     }
 
@@ -82,8 +136,8 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList(
-            "http://localhost:5173", // Vite dev server
-            "http://localhost:3000"  // React dev server
+            "http://localhost:5173", "http://127.0.0.1:5173", // Vite dev server
+            "http://localhost:3000", "http://127.0.0.1:3000"  // React dev server
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
@@ -129,6 +183,22 @@ public class SecurityConfig {
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
+    }
+
+    /**
+     * Custom access denied handler
+     * Returns proper JSON error response instead of empty 403
+     */
+    @Bean
+    public AccessDeniedHandler accessDeniedHandler() {
+        return (HttpServletRequest request, HttpServletResponse response, 
+                org.springframework.security.access.AccessDeniedException accessDeniedException) -> {
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            response.setContentType("application/json");
+            response.setCharacterEncoding("UTF-8");
+            String jsonResponse = "{\"error\":\"Access denied\",\"message\":\"Authentication required. Please log in.\",\"status\":403}";
+            response.getWriter().write(jsonResponse);
+        };
     }
 }
 

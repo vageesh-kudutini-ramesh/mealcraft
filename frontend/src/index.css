@@ -2,32 +2,79 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@layer base {
+  html {
+    @apply font-body antialiased;
+    color-scheme: light;
+  }
+  body {
+    @apply text-slate-900;
+    background: linear-gradient(145deg, #f0f9ff 0%, #e0f2fe 30%, #fff7ed 70%, #fffbeb 100%);
+    min-height: 100vh;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display font-semibold tracking-tight;
+  }
 }
 
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-5 py-2.5 rounded-xl font-medium
+           bg-primary-600 text-white shadow-soft
+           hover:bg-primary-700 hover:shadow-card
+           active:scale-[0.98] transition-all duration-200;
+  }
+  .btn-accent {
+    @apply inline-flex items-center justify-center px-5 py-2.5 rounded-xl font-medium
+           bg-accent-500 text-white shadow-soft
+           hover:bg-accent-600 hover:shadow-card
+           active:scale-[0.98] transition-all duration-200;
+  }
+  .card {
+    @apply bg-white rounded-2xl shadow-card border border-slate-100/80
+           hover:shadow-card-hover transition-all duration-300;
+  }
+  .card-interactive {
+    @apply card cursor-pointer hover:-translate-y-0.5 hover:border-primary-100;
+  }
+  .input-field {
+    @apply w-full px-4 py-3 rounded-xl border border-slate-200
+           focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500
+           placeholder:text-slate-400 transition-all duration-200;
+  }
 }
 
-#root {
-  width: 100%;
-  min-height: 100vh;
+/* Marquee keyframes – used by SlidingTicker (duration via inline style) */
+@keyframes marquee {
+  0% { transform: translateX(-33.333%); }
+  100% { transform: translateX(0); }
 }
 
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
 
+/* Stagger animation delays */
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.1s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.2s; }
+.stagger-5 { animation-delay: 0.25s; }
+.stagger-6 { animation-delay: 0.3s; }
 
-
+/* Print styles – match PDF design, force background colors for color printing */
+@media print {
+  header, nav, aside, .no-print {
+    display: none !important;
+  }
+  body, #root {
+    background: white !important;
+  }
+  .print-force-colors,
+  .print-force-colors th,
+  .print-force-colors td {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

@@ -58,6 +58,11 @@ public interface SavedRecipeRepository extends JpaRepository<SavedRecipe, Long> 
     @Query("SELECT r FROM SavedRecipe r WHERE r.user.id = :userId " +
            "ORDER BY r.createdAt DESC")
     List<SavedRecipe> findRecentRecipes(@Param("userId") Long userId);
+
+    /** Saved recipes that have never been used in a meal plan. */
+    @Query("SELECT r FROM SavedRecipe r WHERE r.user.id = :userId AND " +
+           "(SELECT COUNT(m) FROM MealPlan m WHERE m.savedRecipe = r) = 0")
+    List<SavedRecipe> findUnusedRecipes(@Param("userId") Long userId);
 }
 
 

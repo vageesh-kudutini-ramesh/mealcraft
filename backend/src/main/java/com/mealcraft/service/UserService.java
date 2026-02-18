@@ -76,9 +76,6 @@ public class UserService {
 
     /**
      * Maps User entity to UserProfileDTO
-     * 
-     * @param user User entity
-     * @return UserProfileDTO
      */
     private UserProfileDTO mapToDTO(User user) {
         UserProfileDTO dto = new UserProfileDTO();

@@ -1,8 +1,12 @@
-import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useEffect, useState, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import axios from '../utils/axios'
-import { Plus, Edit, Trash2, X, Package, AlertCircle } from 'lucide-react'
+import { Plus, Edit, Trash2, X, Package, AlertCircle, Sparkles, ChevronDown, RotateCcw, BookOpen, HelpCircle } from 'lucide-react'
 import { useNotification } from '../contexts/NotificationContext'
+import { refreshNotifications } from '../utils/notifications'
+import { getLocalDateStr } from '../utils/date'
+import { CUISINE_INGREDIENTS, CUISINE_LABELS, getRandomizedSubset, QUICK_ADD_DISPLAY_COUNT } from '../data/cuisineIngredients'
+import SlidingTicker from '../components/common/SlidingTicker'
 
 /**
  * Pantry Page
@@ -12,15 +16,25 @@ import { useNotification } from '../contexts/NotificationContext'
  * @author MealCraft Team
  */
 const Pantry = () => {
-  const [items, setItems] = useState([])
+  const [allItems, setAllItems] = useState([])
+  const [expiringItems, setExpiringItems] = useState([])
+  const [expiredItems, setExpiredItems] = useState([])
+  const [lowStockItems, setLowStockItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchParams, setSearchParams] = useSearchParams()
   const filter = searchParams.get('filter')
   const { showSuccess, showError } = useNotification()
+
+  // Current view items based on filter
+  const items = !filter ? allItems : filter === 'expiring' ? expiringItems : filter === 'expired' ? expiredItems : lowStockItems
   
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
+  // Quick-add by cuisine state
+  const [showQuickAdd, setShowQuickAdd] = useState(false)
+  const [selectedCuisine, setSelectedCuisine] = useState(null)
+  const [displayedIngredients, setDisplayedIngredients] = useState([])
   const [formData, setFormData] = useState({
     itemName: '',
     quantity: '',
@@ -30,6 +44,15 @@ const Pantry = () => {
     threshold: ''
   })
   const [formErrors, setFormErrors] = useState({})
+  const [deleteConfirmItem, setDeleteConfirmItem] = useState(null)
+  const [showPantryGuide, setShowPantryGuide] = useState(() => {
+    try {
+      return localStorage.getItem('pantry-how-it-works-dismissed') !== 'true'
+    } catch {
+      return true
+    }
+  })
+  const headerRef = useRef(null)
 
   // Category options
   const categories = [
@@ -46,33 +69,56 @@ const Pantry = () => {
 
   useEffect(() => {
     fetchPantryItems()
+  }, [])
+
+  useEffect(() => {
+    headerRef.current?.scrollIntoView({ block: 'start' })
   }, [filter])
+
+  // When cuisine is selected, load a random subset of ingredients
+  useEffect(() => {
+    if (selectedCuisine && CUISINE_INGREDIENTS[selectedCuisine]) {
+      setDisplayedIngredients(getRandomizedSubset(CUISINE_INGREDIENTS[selectedCuisine], QUICK_ADD_DISPLAY_COUNT))
+    } else {
+      setDisplayedIngredients([])
+    }
+  }, [selectedCuisine])
+
+  const handleRefreshIngredients = () => {
+    if (selectedCuisine && CUISINE_INGREDIENTS[selectedCuisine]) {
+      setDisplayedIngredients(getRandomizedSubset(CUISINE_INGREDIENTS[selectedCuisine], QUICK_ADD_DISPLAY_COUNT))
+    }
+  }
 
   const fetchPantryItems = async () => {
     try {
       setLoading(true)
-      let response
-      if (filter === 'expiring') {
-        response = await axios.get('/api/pantry/expiring')
-      } else if (filter === 'expired') {
-        response = await axios.get('/api/pantry/expired')
-      } else if (filter === 'low-stock') {
-        response = await axios.get('/api/pantry/low-stock')
-      } else {
-        response = await axios.get('/api/pantry')
-      }
-      setItems(response.data)
+      const localDate = getLocalDateStr()
+      const [allRes, expiringRes, expiredRes, lowStockRes] = await Promise.all([
+        axios.get('/api/pantry'),
+        axios.get(`/api/pantry/expiring?localDate=${localDate}`),
+        axios.get(`/api/pantry/expired?localDate=${localDate}`),
+        axios.get('/api/pantry/low-stock')
+      ])
+      setAllItems(allRes.data || [])
+      setExpiringItems(expiringRes.data || [])
+      setExpiredItems(expiredRes.data || [])
+      setLowStockItems(lowStockRes.data || [])
     } catch (error) {
       showError('Error loading pantry items')
+      setAllItems([])
+      setExpiringItems([])
+      setExpiredItems([])
+      setLowStockItems([])
     } finally {
       setLoading(false)
     }
   }
 
-  const handleAddClick = () => {
+  const handleAddClick = (presetItemName = '') => {
     setEditingItem(null)
     setFormData({
-      itemName: '',
+      itemName: presetItemName,
       quantity: '',
       unit: 'pieces',
       category: 'FRUITS_VEGETABLES',
@@ -81,6 +127,13 @@ const Pantry = () => {
     })
     setFormErrors({})
     setIsModalOpen(true)
+    // If opened from quick-add, collapse it
+    setShowQuickAdd(false)
+    setSelectedCuisine(null)
+  }
+
+  const handleQuickAddIngredient = (ingredientName) => {
+    handleAddClick(ingredientName)
   }
 
   // Helper function to format date for date input (YYYY-MM-DD)
@@ -237,12 +290,12 @@ const Pantry = () => {
   }
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this item?')) return
-
     try {
       await axios.delete(`/api/pantry/${id}`)
       showSuccess('Item deleted successfully')
+      refreshNotifications()
       fetchPantryItems()
+      setDeleteConfirmItem(null)
     } catch (error) {
       showError('Error deleting item')
     }
@@ -264,6 +317,8 @@ const Pantry = () => {
         return 'bg-yellow-100 text-yellow-800 border-yellow-200'
       case 'EXPIRED':
         return 'bg-red-100 text-red-800 border-red-200'
+      case 'LOW_STOCK':
+        return 'bg-orange-100 text-orange-800 border-orange-200'
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200'
     }
@@ -277,10 +332,19 @@ const Pantry = () => {
         return '🟡 Expiring Soon'
       case 'EXPIRED':
         return '🔴 Expired'
+      case 'LOW_STOCK':
+        return '🟠 Low Stock'
       default:
-        return status
+        return status || '—'
     }
   }
+
+  const filterTabs = [
+    { key: null, label: 'All Items', count: allItems.length, activeClass: 'bg-primary-600 text-white shadow-sm border-2 border-primary-600', inactiveClass: 'text-gray-600 hover:bg-gray-100 border-2 border-transparent' },
+    { key: 'expiring', label: 'Expiring Soon', count: expiringItems.length, activeClass: 'bg-yellow-100 text-yellow-800 border-2 border-yellow-300', inactiveClass: 'text-gray-600 hover:bg-gray-100 border-2 border-transparent' },
+    { key: 'expired', label: 'Expired', count: expiredItems.length, activeClass: 'bg-red-100 text-red-800 border-2 border-red-300', inactiveClass: 'text-gray-600 hover:bg-gray-100 border-2 border-transparent' },
+    { key: 'low-stock', label: 'Low Stock', count: lowStockItems.length, activeClass: 'bg-orange-100 text-orange-800 border-2 border-orange-300', inactiveClass: 'text-gray-600 hover:bg-gray-100 border-2 border-transparent' }
+  ]
 
   if (loading) {
     return (
@@ -294,107 +358,205 @@ const Pantry = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">My Pantry</h1>
-          <p className="text-gray-600 mt-1">Manage your pantry inventory and track expiration dates</p>
-        </div>
-        <button
-          onClick={handleAddClick}
-          className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 flex items-center shadow-md hover:shadow-lg transition-all font-medium"
-        >
-          <Plus size={20} className="mr-2" />
-          Add Item
-        </button>
-      </div>
-
-      {/* Filter Tabs */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-1">
-        <div className="flex space-x-1">
-          <button
-            onClick={() => handleFilterChange(null)}
-            className={`flex-1 px-4 py-3 rounded-md font-medium transition-all ${
-              !filter
-                ? 'bg-primary-600 text-white shadow-sm'
-                : 'text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            All Items
-            {!filter && <span className="ml-2 text-sm">({items.length})</span>}
-          </button>
-          <button
-            onClick={() => handleFilterChange('expiring')}
-            className={`flex-1 px-4 py-3 rounded-md font-medium transition-all ${
-              filter === 'expiring'
-                ? 'bg-yellow-100 text-yellow-800 border border-yellow-300'
-                : 'text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            Expiring Soon
-            {filter === 'expiring' && <span className="ml-2 text-sm">({items.length})</span>}
-          </button>
-          <button
-            onClick={() => handleFilterChange('expired')}
-            className={`flex-1 px-4 py-3 rounded-md font-medium transition-all ${
-              filter === 'expired'
-                ? 'bg-red-100 text-red-800 border border-red-300'
-                : 'text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            Expired
-            {filter === 'expired' && <span className="ml-2 text-sm">({items.length})</span>}
-          </button>
-          <button
-            onClick={() => handleFilterChange('low-stock')}
-            className={`flex-1 px-4 py-3 rounded-md font-medium transition-all ${
-              filter === 'low-stock'
-                ? 'bg-orange-100 text-orange-800 border border-orange-300'
-                : 'text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            Low Stock
-            {filter === 'low-stock' && <span className="ml-2 text-sm">({items.length})</span>}
-          </button>
-        </div>
-      </div>
-
-      {/* Items List */}
-      {items.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-          <Package className="mx-auto text-gray-400 mb-4" size={64} />
-          <h3 className="text-xl font-semibold text-gray-700 mb-2">
-            {filter === 'expiring' && 'No items expiring soon'}
-            {filter === 'expired' && 'No expired items'}
-            {filter === 'low-stock' && 'No low stock items'}
-            {!filter && 'Your pantry is empty'}
-          </h3>
-          <p className="text-gray-500 mb-6">
-            {!filter && 'Start by adding items to your pantry to track expiration dates and manage inventory.'}
-            {filter && 'Great job! All items are in good condition.'}
-          </p>
-          {!filter && (
-            <button
-              onClick={handleAddClick}
-              className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 inline-flex items-center font-medium"
-            >
-              <Plus size={20} className="mr-2" />
-              Add Your First Item
-            </button>
-          )}
+    <div className="space-y-6 overflow-x-hidden min-w-0 w-full max-w-full">
+      {/* Pantry Guide – collapsible, like Meal Plan */}
+      {showPantryGuide ? (
+        <div className="bg-gradient-to-br from-primary-50 to-blue-50/50 rounded-2xl border border-primary-100 p-6 shadow-soft">
+          <div className="flex items-start gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-100">
+              <BookOpen className="h-5 w-5 text-primary-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base font-semibold text-gray-900 mb-3">How to use your Pantry</h3>
+              <ol className="space-y-2 text-sm text-gray-700">
+                <li className="flex gap-2">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary-200 text-primary-700 text-xs font-bold">1</span>
+                  <span><strong>Quick Add from Suggestions</strong> – pick a cuisine (Indian, Italian, etc.), then choose ingredients from the list. Click Refresh to see new suggestions. Set quantity, unit, category, expiration date, and low-stock threshold when adding.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary-200 text-primary-700 text-xs font-bold">2</span>
+                  <span><strong>Add Item</strong> – add any ingredient manually. Use filters (All, Expiring Soon, Expired, Low Stock) to track what needs attention.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary-200 text-primary-700 text-xs font-bold">3</span>
+                  <span><strong>Track smartly</strong> – expiration dates help you reduce waste. Low-stock thresholds remind you when to restock.</span>
+                </li>
+              </ol>
+              <button
+                type="button"
+                onClick={() => { setShowPantryGuide(false); try { localStorage.setItem('pantry-how-it-works-dismissed', 'true') } catch {} }}
+                className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-sm"
+              >
+                Got it, thanks →
+              </button>
+            </div>
+          </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <button
+          type="button"
+          onClick={() => setShowPantryGuide(true)}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium bg-primary-50 text-primary-700 border-2 border-primary-200 hover:bg-primary-100 hover:border-primary-300 transition-all shadow-sm"
+        >
+          <HelpCircle size={20} />
+          View guide – How to use your Pantry
+        </button>
+      )}
+
+      {/* Header + Tabs – same layout for all tabs including Low Stock */}
+      <div ref={headerRef} className="pb-3 border-b border-gray-100">
+        <div className="flex flex-wrap justify-between items-center gap-3 mb-3">
+          <p className="text-gray-600">Manage your pantry inventory and track expiration dates</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setShowQuickAdd(!showQuickAdd)}
+              className={`px-5 py-3 rounded-lg flex items-center font-medium transition-all shrink-0 ${
+                showQuickAdd
+                  ? 'bg-primary-600 text-white shadow-md'
+                  : 'bg-primary-50 text-primary-700 border-2 border-primary-200 hover:bg-primary-100'
+              }`}
+            >
+              <Sparkles size={20} className="mr-2" />
+              Quick Add from Suggestions
+              <ChevronDown size={18} className={`ml-2 transition-transform ${showQuickAdd ? 'rotate-180' : ''}`} />
+            </button>
+            <button
+              onClick={() => handleAddClick()}
+              className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 flex items-center shadow-md hover:shadow-lg transition-all font-medium shrink-0"
+            >
+              <Plus size={20} className="mr-2" />
+              Add Item
+            </button>
+          </div>
+        </div>
+
+        {/* Filter Tabs – flex-nowrap keeps same height for all tabs; scroll if needed */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-1 shrink-0 overflow-x-auto">
+          <div className="flex flex-nowrap gap-1">
+            {filterTabs.map((tab) => {
+              const isActive = (tab.key === null && !filter) || (tab.key === filter)
+              return (
+                <button
+                  key={tab.key ?? 'all'}
+                  type="button"
+                  onClick={() => handleFilterChange(tab.key)}
+                  className={`shrink-0 px-3 sm:px-4 py-3 rounded-md font-medium text-sm sm:text-base ${
+                    isActive ? tab.activeClass : tab.inactiveClass
+                  }`}
+                  style={{ minWidth: 100 }}
+                >
+                  {tab.label} <span className="ml-1 text-sm opacity-90">({tab.count})</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Add by Cuisine */}
+      {showQuickAdd && (
+        <div className="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden animate-fade-in">
+          <div className="p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">Choose a cuisine or region to see suggested ingredients</h3>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {CUISINE_LABELS.map((cuisine) => (
+                <button
+                  key={cuisine}
+                  onClick={() => setSelectedCuisine(selectedCuisine === cuisine ? null : cuisine)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                    selectedCuisine === cuisine
+                      ? 'bg-primary-600 text-white shadow-md'
+                      : 'bg-slate-100 text-slate-700 hover:bg-primary-100 hover:text-primary-800'
+                  }`}
+                >
+                  {cuisine}
+                </button>
+              ))}
+            </div>
+            {selectedCuisine && (
+              <>
+                <div className="flex flex-wrap items-center gap-3 mb-3">
+                  <p className="text-sm text-gray-600 flex-1 min-w-0">
+                    Click an ingredient to add it to your pantry. You&apos;ll then set quantity, unit, category, expiration date, and threshold.
+                  </p>
+                  <button
+                    onClick={handleRefreshIngredients}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-100 text-primary-700 font-medium hover:bg-primary-200 transition-all border border-primary-200 shadow-sm"
+                    title="Load different ingredient suggestions"
+                  >
+                    <RotateCcw size={18} />
+                    Refresh – see new items
+                  </button>
+                </div>
+                <p className="text-xs text-primary-600 mb-2">
+                  Showing {displayedIngredients.length} of {CUISINE_INGREDIENTS[selectedCuisine].length} items · Click refresh for more suggestions
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {displayedIngredients.map((ingredient) => (
+                    <button
+                      key={ingredient}
+                      onClick={() => handleQuickAddIngredient(ingredient)}
+                      className="px-4 py-2 bg-primary-50 text-primary-800 rounded-lg font-medium hover:bg-primary-100 hover:shadow-sm transition-all border border-primary-100"
+                    >
+                      {ingredient}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Items List – same layout for all columns (grid or empty state) */}
+      {items.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+          <div className="p-12 text-center">
+            <Package className="mx-auto text-gray-400 mb-4" size={64} />
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">
+              {filter === 'expiring' && 'No items expiring soon'}
+              {filter === 'expired' && 'No expired items'}
+              {filter === 'low-stock' && 'No low stock items'}
+              {!filter && 'Your pantry is empty'}
+            </h3>
+            <p className="text-gray-500 mb-6">
+              {!filter && 'Start by adding items to your pantry to track expiration dates and manage inventory.'}
+              {filter === 'expiring' && 'No items expire in the next 7 days.'}
+              {filter === 'expired' && 'No items have passed their expiration date.'}
+              {filter === 'low-stock' && 'All items are above their low-stock threshold.'}
+            </p>
+            {filter !== 'low-stock' && (
+              <div className="flex flex-wrap justify-center gap-3">
+                <button
+                  onClick={() => { setShowQuickAdd(true); setSelectedCuisine(null); }}
+                  className="bg-primary-50 text-primary-700 border-2 border-primary-200 px-6 py-3 rounded-lg hover:bg-primary-100 inline-flex items-center font-medium"
+                >
+                  <Sparkles size={20} className="mr-2" />
+                  Quick Add from Suggestions
+                </button>
+                <button
+                  onClick={() => handleAddClick()}
+                  className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 inline-flex items-center font-medium"
+                >
+                  <Plus size={20} className="mr-2" />
+                  {!filter ? 'Add Your First Item' : 'Add Item'}
+                </button>
+              </div>
+            )}
+          </div>
+          <SlidingTicker variant="default" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 min-w-0">
           {items.map((item) => (
             <div
               key={item.id}
-              className="bg-white rounded-lg shadow-md border border-gray-200 p-6 hover:shadow-lg transition-all"
+              className="bg-white rounded-lg shadow-md border border-gray-200 p-6 hover:shadow-lg transition-all min-w-0 overflow-hidden"
             >
               {/* Header */}
               <div className="flex justify-between items-start mb-4">
-                <div className="flex-1">
-                  <h3 className="font-bold text-lg text-gray-900 mb-1">{item.itemName}</h3>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-lg text-gray-900 mb-1 break-words">{item.itemName}</h3>
                   <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(item.expirationStatus)}`}>
                     {getStatusLabel(item.expirationStatus)}
                   </span>
@@ -428,9 +590,9 @@ const Pantry = () => {
                   </div>
                 )}
                 {item.isLowStock && (
-                  <div className="flex items-center text-orange-700">
-                    <AlertCircle size={16} className="mr-2" />
-                    <span className="text-sm font-medium">Low stock (threshold: {item.threshold} {item.unit})</span>
+                  <div className="flex items-center text-orange-700 min-w-0">
+                    <AlertCircle size={16} className="mr-2 shrink-0" />
+                    <span className="text-sm font-medium break-words">Low stock (threshold: {item.threshold} {item.unit})</span>
                   </div>
                 )}
                 <div className="text-sm text-gray-500 pt-2 border-t border-gray-100">
@@ -448,7 +610,7 @@ const Pantry = () => {
                   Edit
                 </button>
                 <button
-                  onClick={() => handleDelete(item.id)}
+                  onClick={() => setDeleteConfirmItem({ id: item.id, itemName: item.itemName })}
                   className="flex-1 bg-red-50 text-red-700 px-4 py-2 rounded-lg hover:bg-red-100 flex items-center justify-center font-medium transition-colors"
                 >
                   <Trash2 size={16} className="mr-2" />
@@ -457,6 +619,45 @@ const Pantry = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {deleteConfirmItem && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setDeleteConfirmItem(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 border border-gray-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <Trash2 size={24} className="text-red-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900">Delete pantry item?</h3>
+            </div>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete &quot;{deleteConfirmItem.itemName}&quot;? This cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => handleDelete(deleteConfirmItem.id)}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white font-medium hover:bg-red-700 transition-colors"
+              >
+                Delete
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmItem(null)}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

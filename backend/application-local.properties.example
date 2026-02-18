@@ -1,0 +1,11 @@
+# Copy this file to application-local.properties and fill in your values.
+# NEVER commit application-local.properties - it is gitignored.
+
+# Database (PostgreSQL)
+spring.datasource.password=your_db_password_here
+
+# JWT - generate a secure random string (e.g. 64+ chars)
+jwt.secret=your_jwt_secret_here
+
+# Spoonacular API - get free key at https://spoonacular.com/food-api/console
+spoonacular.api.key=your_spoonacular_api_key_here

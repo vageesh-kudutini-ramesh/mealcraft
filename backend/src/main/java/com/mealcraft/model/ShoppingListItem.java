@@ -74,6 +74,20 @@ public class ShoppingListItem {
     private Boolean isPurchased = false;
 
     /**
+     * Date when the item was added (user's local date).
+     * When null, falls back to createdAt for display.
+     */
+    @Column
+    private LocalDate addedAt;
+
+    /**
+     * Date when the item was marked as purchased (user's local date when they clicked the checkbox).
+     * Null if not yet purchased.
+     */
+    @Column
+    private LocalDate purchasedAt;
+
+    /**
      * Suggested expiration date (auto-calculated based on item type)
      * Optional - helps user set expiration when adding to pantry
      */
@@ -87,6 +101,18 @@ public class ShoppingListItem {
     @Enumerated(EnumType.STRING)
     @Column
     private PantryItem.PantryCategory category;
+
+    /**
+     * Source of this item: "MANUAL" or "MEAL_PLAN_WEEK". Used for undo "Remove items added from week plan".
+     */
+    @Column(length = 40)
+    private String sourceType;
+
+    /**
+     * When sourceType is MEAL_PLAN_WEEK, the week start date (yyyy-MM-dd) so we can undo by week.
+     */
+    @Column(length = 10)
+    private String sourceWeekStart;
 
     /**
      * Foreign key reference to the user who owns this shopping list item
@@ -114,10 +140,11 @@ public class ShoppingListItem {
     private LocalDateTime updatedAt;
 
     /**
-     * Marks the item as purchased
+     * Marks the item as purchased (records the date - use user's local date from frontend).
      */
-    public void markAsPurchased() {
+    public void markAsPurchased(LocalDate purchaseDate) {
         this.isPurchased = true;
+        this.purchasedAt = purchaseDate != null ? purchaseDate : LocalDate.now();
     }
 
     /**

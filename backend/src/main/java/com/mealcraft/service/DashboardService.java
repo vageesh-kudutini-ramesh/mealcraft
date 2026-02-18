@@ -43,13 +43,13 @@ public class DashboardService {
         List<PantryItemDTO> allPantryItems = pantryItemService.getAllPantryItems(userId);
         stats.setTotalPantryItems((long) allPantryItems.size());
 
-        // Get expiring items (1-5 days)
-        List<PantryItemDTO> expiringItems = pantryItemService.getExpiringItems(userId);
+        // Get expiring items (within 7 days)
+        List<PantryItemDTO> expiringItems = pantryItemService.getExpiringItems(userId, null);
         stats.setExpiringSoonCount((long) expiringItems.size());
         stats.setExpiringSoonItems(expiringItems);
 
         // Get expired items
-        List<PantryItemDTO> expiredItems = pantryItemService.getExpiredItems(userId);
+        List<PantryItemDTO> expiredItems = pantryItemService.getExpiredItems(userId, null);
         stats.setExpiredCount((long) expiredItems.size());
         stats.setExpiredItems(expiredItems);
 

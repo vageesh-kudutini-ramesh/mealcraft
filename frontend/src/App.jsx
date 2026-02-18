@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './contexts/AuthContext'
 import { NotificationProvider } from './contexts/NotificationContext'
 import ProtectedRoute from './components/auth/ProtectedRoute'
+import { ErrorBoundary } from './components/common/ErrorBoundary'
 import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
 import Dashboard from './pages/Dashboard'
@@ -40,9 +41,9 @@ function App() {
             >
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
-              <Route path="pantry" element={<Pantry />} />
+              <Route path="pantry" element={<ErrorBoundary><Pantry /></ErrorBoundary>} />
               <Route path="recipes" element={<Recipes />} />
-              <Route path="meal-plan" element={<MealPlan />} />
+              <Route path="meal-plan" element={<ErrorBoundary><MealPlan /></ErrorBoundary>} />
               <Route path="shopping-list" element={<ShoppingList />} />
               <Route path="profile" element={<Profile />} />
             </Route>

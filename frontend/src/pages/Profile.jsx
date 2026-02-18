@@ -1,19 +1,24 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import axios from '../utils/axios'
 import { useAuth } from '../contexts/AuthContext'
 import { useNotification } from '../contexts/NotificationContext'
+import ProfilePhotoAvatar from '../components/profile/ProfilePhotoAvatar'
+import { User, LogOut } from 'lucide-react'
 
 /**
- * Profile Page
- * 
- * User profile management with editable fields.
- * 
- * @author MealCraft Team
+ * Profile Page - User profile management with editable fields.
  */
 const Profile = () => {
-  const { user, updateProfile } = useAuth()
+  const { updateProfile, logout } = useAuth()
+  const navigate = useNavigate()
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+
+  const profileMenuItems = [
+    { icon: User, label: 'Profile', onClick: () => navigate('/profile') },
+    { icon: LogOut, label: 'Logout', onClick: () => { logout(); navigate('/login') } },
+  ]
   const [editing, setEditing] = useState(false)
   const [formData, setFormData] = useState({})
   const { showSuccess, showError } = useNotification()
@@ -64,14 +69,9 @@ const Profile = () => {
       <h1 className="text-3xl font-bold text-gray-900">Profile</h1>
 
       <div className="bg-white rounded-lg shadow p-6">
-        {/* Profile Icon */}
+        {/* Profile Avatar - initials with Profile/Logout menu */}
         <div className="flex justify-center mb-6">
-          <div
-            className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-semibold"
-            style={{ backgroundColor: getProfileColor(profile?.fullName) }}
-          >
-            {profile?.initials || 'U'}
-          </div>
+          <ProfilePhotoAvatar size="lg" extraMenuItems={profileMenuItems} showUserInfo menuAlign="left" />
         </div>
 
         {/* Profile Form */}

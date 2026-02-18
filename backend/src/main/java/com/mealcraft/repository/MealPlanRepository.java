@@ -71,6 +71,20 @@ public interface MealPlanRepository extends JpaRepository<MealPlan, Long> {
      * @param date Date to clear
      */
     void deleteByUserIdAndDate(Long userId, LocalDate date);
+
+    /**
+     * Finds meal plans in date range that were auto-filled by a pattern (for revert).
+     */
+    @Query("SELECT m FROM MealPlan m WHERE m.user.id = :userId " +
+           "AND m.date >= :startDate AND m.date <= :endDate AND m.sourcePatternKey IS NOT NULL")
+    List<MealPlan> findWeeklyMealPlansWithSourcePattern(@Param("userId") Long userId,
+                                                        @Param("startDate") LocalDate startDate,
+                                                        @Param("endDate") LocalDate endDate);
+
+    /**
+     * Finds meal plans that are leftovers of a given source meal plan.
+     */
+    List<MealPlan> findByLeftoverOfMealPlan_Id(Long sourceMealPlanId);
 }
 
 

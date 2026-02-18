@@ -1,5 +1,6 @@
 package com.mealcraft.controller;
 
+import com.mealcraft.dto.AddToShoppingListResponse;
 import com.mealcraft.dto.ShoppingListItemDTO;
 import com.mealcraft.model.User;
 import com.mealcraft.repository.UserRepository;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Shopping List Controller
@@ -65,24 +67,63 @@ public class ShoppingListController {
     }
 
     /**
-     * Auto-generates shopping list from weekly meal plan
-     * 
-     * POST /api/shopping-list/generate?startDate={startDate}&endDate={endDate}
-     * 
-     * @param authentication Spring Security authentication object
-     * @param startDate Start date of the week
-     * @param endDate End date of the week
-     * @return List of generated ShoppingListItemDTO
+     * Check if items from this week are already on the shopping list.
+     * GET /api/shopping-list/from-week-status?weekStart=yyyy-MM-dd
      */
-    @PostMapping("/generate")
-    public ResponseEntity<List<ShoppingListItemDTO>> generateShoppingList(
+    @GetMapping("/from-week-status")
+    public ResponseEntity<?> getFromWeekStatus(
+            Authentication authentication,
+            @RequestParam String weekStart) {
+        if (authentication == null || authentication.getPrincipal() == null) {
+            return ResponseEntity.status(401).body(java.util.Map.of("error", "Authentication required"));
+        }
+        User user = getCurrentUser(authentication);
+        long count = shoppingListService.countItemsFromWeek(user.getId(), weekStart);
+        return ResponseEntity.ok(java.util.Map.of(
+            "hasItemsFromWeek", count > 0,
+            "count", count
+        ));
+    }
+
+    /**
+     * One-click: add this week's meal plan ingredients to shopping list (deduped, minus pantry).
+     * Returns addedCount and weekStart so frontend can offer "Undo".
+     * forceFull=true: replace existing week items (undo first, then add) - for "add again" flow.
+     */
+    @PostMapping("/from-week")
+    public ResponseEntity<?> addFromMealPlanWeek(
             Authentication authentication,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate addedDate,
+            @RequestParam(required = false, defaultValue = "false") boolean forceFull) {
+        if (authentication == null || authentication.getPrincipal() == null) {
+            return ResponseEntity.status(401).body(java.util.Map.of("error", "Authentication required"));
+        }
+        try {
+            User user = getCurrentUser(authentication);
+            AddToShoppingListResponse result = shoppingListService.generateShoppingListFromMealPlan(
+                user.getId(), startDate, endDate, addedDate, forceFull);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(java.util.Map.of(
+                "error", "Failed to add ingredients",
+                "message", e.getMessage() != null ? e.getMessage() : "Internal server error"
+            ));
+        }
+    }
+
+    /**
+     * Undo: remove all items that were added from a specific week's meal plan.
+     */
+    @PostMapping("/undo-from-week")
+    public ResponseEntity<?> undoFromMealPlanWeek(
+            Authentication authentication,
+            @RequestParam String weekStart) {
         User user = getCurrentUser(authentication);
-        List<ShoppingListItemDTO> items = shoppingListService.generateShoppingListFromMealPlan(
-            user.getId(), startDate, endDate);
-        return ResponseEntity.ok(items);
+        int removed = shoppingListService.removeItemsFromMealPlanWeek(user.getId(), weekStart);
+        return ResponseEntity.ok(java.util.Map.of("removedCount", removed));
     }
 
     /**
@@ -125,17 +166,23 @@ public class ShoppingListController {
 
     /**
      * Marks shopping list item as purchased
+     * Accepts optional body: {"purchasedDate": "yyyy-MM-dd"} for user's local date/timezone
      * 
      * POST /api/shopping-list/{id}/purchase
-     * 
-     * @param authentication Spring Security authentication object
-     * @param id Shopping list item ID
-     * @return Success response
      */
     @PostMapping("/{id}/purchase")
-    public ResponseEntity<?> markAsPurchased(Authentication authentication, @PathVariable Long id) {
+    public ResponseEntity<?> markAsPurchased(
+            Authentication authentication,
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, String> body) {
         User user = getCurrentUser(authentication);
-        shoppingListService.markAsPurchased(user.getId(), id);
+        java.time.LocalDate purchaseDate = null;
+        if (body != null && body.containsKey("purchasedDate")) {
+            try {
+                purchaseDate = java.time.LocalDate.parse(body.get("purchasedDate"));
+            } catch (Exception ignored) { /* use server date */ }
+        }
+        shoppingListService.markAsPurchased(user.getId(), id, purchaseDate);
         return ResponseEntity.ok().build();
     }
 
@@ -157,16 +204,23 @@ public class ShoppingListController {
 
     /**
      * Clears all purchased items
-     * 
      * DELETE /api/shopping-list/purchased
-     * 
-     * @param authentication Spring Security authentication object
-     * @return Success response
      */
     @DeleteMapping("/purchased")
     public ResponseEntity<?> clearPurchasedItems(Authentication authentication) {
         User user = getCurrentUser(authentication);
         shoppingListService.clearPurchasedItems(user.getId());
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Clears all unpurchased (to-buy) items
+     * DELETE /api/shopping-list/unpurchased
+     */
+    @DeleteMapping("/unpurchased")
+    public ResponseEntity<?> clearUnpurchasedItems(Authentication authentication) {
+        User user = getCurrentUser(authentication);
+        shoppingListService.clearUnpurchasedItems(user.getId());
         return ResponseEntity.ok().build();
     }
 

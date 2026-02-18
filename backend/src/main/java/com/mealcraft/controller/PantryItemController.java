@@ -10,8 +10,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -67,17 +69,15 @@ public class PantryItemController {
     }
 
     /**
-     * Gets expiring items (1-5 days until expiry)
-     * 
+     * Gets expiring items (within 7 days). Optional ?localDate=yyyy-MM-dd for user's timezone.
      * GET /api/pantry/expiring
-     * 
-     * @param authentication Spring Security authentication object
-     * @return List of PantryItemDTO
      */
     @GetMapping("/expiring")
-    public ResponseEntity<List<PantryItemDTO>> getExpiringItems(Authentication authentication) {
+    public ResponseEntity<List<PantryItemDTO>> getExpiringItems(
+            Authentication authentication,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate localDate) {
         User user = getCurrentUser(authentication);
-        List<PantryItemDTO> items = pantryItemService.getExpiringItems(user.getId());
+        List<PantryItemDTO> items = pantryItemService.getExpiringItems(user.getId(), localDate);
         return ResponseEntity.ok(items);
     }
 
@@ -90,9 +90,11 @@ public class PantryItemController {
      * @return List of PantryItemDTO
      */
     @GetMapping("/expired")
-    public ResponseEntity<List<PantryItemDTO>> getExpiredItems(Authentication authentication) {
+    public ResponseEntity<List<PantryItemDTO>> getExpiredItems(
+            Authentication authentication,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate localDate) {
         User user = getCurrentUser(authentication);
-        List<PantryItemDTO> items = pantryItemService.getExpiredItems(user.getId());
+        List<PantryItemDTO> items = pantryItemService.getExpiredItems(user.getId(), localDate);
         return ResponseEntity.ok(items);
     }
 

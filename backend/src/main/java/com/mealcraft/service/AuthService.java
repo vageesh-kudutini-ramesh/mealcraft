@@ -116,7 +116,6 @@ public class AuthService {
         response.setEmail(user.getEmail());
         response.setFullName(user.getFullName());
         response.setInitials(user.getInitials());
-
         return response;
     }
 }

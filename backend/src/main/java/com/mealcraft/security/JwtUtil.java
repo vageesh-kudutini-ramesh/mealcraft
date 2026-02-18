@@ -102,7 +102,12 @@ public class JwtUtil {
      * @return true if token is expired, false otherwise
      */
     private Boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
+        try {
+            Date expiration = extractExpiration(token);
+            return expiration != null && expiration.before(new Date());
+        } catch (Exception e) {
+            return true; // If we can't extract expiration, consider it expired
+        }
     }
 
     /**
@@ -141,8 +146,13 @@ public class JwtUtil {
      * @return true if token is valid, false otherwise
      */
     public Boolean validateToken(String token, UserDetails userDetails) {
-        final String username = extractUsername(token);
-        return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+        try {
+            final String username = extractUsername(token);
+            boolean isValid = username.equals(userDetails.getUsername()) && !isTokenExpired(token);
+            return isValid;
+        } catch (Exception e) {
+            return false;
+        }
     }
 }
 

@@ -1,0 +1,53 @@
+/**
+ * Dynamic content for sliding tickers – tips, insights, fun facts.
+ * Rotates to keep users engaged across empty states and navbar.
+ *
+ * @author MealCraft Team
+ */
+
+export const MARQUEE_ITEMS = [
+  { icon: '🍅', text: 'Tip: Store tomatoes stem-down to last longer!' },
+  { icon: '🧅', text: 'Onions in pantyhose stay fresh for months' },
+  { icon: '🥑', text: 'Avocado + lemon juice = slower browning' },
+  { icon: '🌿', text: 'Herbs in water like flowers – crisp for days' },
+  { icon: '🍌', text: 'Wrap banana stems to delay ripening' },
+  { icon: '🧊', text: 'Freeze herbs in oil for easy cooking' },
+  { icon: '🥕', text: 'Carrots last weeks in fridge with a damp towel' },
+  { icon: '🥗', text: 'Wash greens, spin dry, store in airtight – stays fresh!' },
+  { icon: '🍋', text: 'Lemons last longer in a sealed bag' },
+  { icon: '🌶️', text: 'Revive wilted peppers in ice water' },
+  { icon: '🍞', text: 'Bread in fridge? Freeze slices for toast' },
+  { icon: '🥛', text: 'Milk freezes well – shake after thawing' },
+  { icon: '🫒', text: 'Olive oil lasts 2 years when stored dark & cool' },
+  { icon: '🍚', text: 'Rice in airtight container = no weevils' },
+  { icon: '🧂', text: 'Salt never expires – ever' },
+  { icon: '🍯', text: 'Honey found in tombs – still good!' },
+  { icon: '☕', text: 'Coffee stays fresh in freezer for months' },
+  { icon: '🥜', text: 'Nuts in fridge = no rancidity' },
+  { icon: '🥖', text: 'Stale bread? Make croutons or bread pudding' },
+  { icon: '🍎', text: 'One bad apple? Remove it – saves the bunch' },
+  { icon: '🌽', text: 'Blanch then freeze corn – tastes like summer in winter' },
+  { icon: '🥬', text: 'Blanch greens before freezing – better texture' },
+  { icon: '🫑', text: 'Roast peppers, peel, freeze in oil – instant flavor' },
+  { icon: '🥒', text: 'Cucumbers hate the fridge – use the drawer' },
+  { icon: '🫛', text: 'Peas from freezer = often fresher than "fresh"' },
+  { icon: '🍇', text: 'Grapes last longer when dry in container' },
+  { icon: '🍓', text: 'Don’t wash strawberries until you eat them' },
+  { icon: '🧀', text: 'Cheese wrapped in wax paper breathes better' },
+  { icon: '🥚', text: 'Eggs? Store pointy-side down in fridge' },
+  { icon: '🫘', text: 'Beans soaked overnight = faster cooking, fewer tummy issues' },
+  { icon: '🌟', text: 'Meal prep Sunday = chill week ahead' },
+  { icon: '👨‍🍳', text: 'Batch cook grains – rice, quinoa last 5 days' },
+  { icon: '🥘', text: 'One-pot meals = fewer dishes, more joy' },
+  { icon: '🌮', text: 'Taco Tuesday never gets old' },
+  { icon: '🍲', text: 'Soups taste better the next day' },
+  { icon: '🥧', text: 'Pie crust freezes beautifully – make extra' },
+  { icon: '🧁', text: 'Muffins freeze great – microwave 20 sec' },
+  { icon: '🍕', text: 'Pizza dough in freezer = instant pizza night' },
+  { icon: '🥪', text: 'Sandwich prep = 5 mins to grab-and-go' },
+  { icon: '💪', text: 'Protein + veggies + grain = balanced plate' },
+  { icon: '🌈', text: 'Eat the rainbow – more colors, more nutrients' },
+  { icon: '💧', text: 'Hydrate! Sometimes hunger is thirst' },
+  { icon: '😊', text: 'Cook with love – it really does taste better' },
+  { icon: '✨', text: 'Small steps today = big habits tomorrow' },
+]
