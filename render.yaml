@@ -1,0 +1,24 @@
+# Render Blueprint - Backend deployment config (optional)
+# See: https://render.com/docs/blueprint-spec
+# You can also create the Web Service manually with the same settings.
+
+services:
+  - type: web
+    name: mealcraft-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_USERNAME
+        sync: false
+      - key: DATABASE_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: SPOONACULAR_API_KEY
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false

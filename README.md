@@ -290,7 +290,7 @@ Sensitive configuration is stored in `backend/application-local.properties` (git
 - JWT secret
 - Spoonacular API key
 
-Use `application-local.properties.example` as a template. See `GIT_PUSH_STEPS.md` for push instructions.
+Use `application-local.properties.example` as a template.
 
 ---
 
